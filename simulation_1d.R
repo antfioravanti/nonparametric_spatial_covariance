@@ -1,4 +1,5 @@
 ### 1 DIMENSIONAL SIMULATION
+if (!require(ggplot2)) install.packages("ggplot2"); library(ggplot2)
 setwd(file.path(dirname(rstudioapi::getActiveDocumentContext()$path)))
 source("utils_functions.R") # Upload functions in separate script
 set.seed(42)
@@ -75,7 +76,7 @@ for(i in 1:nrow(grid)){
                                X, grid, bandwidth,
                                kernel_function = "triangle_kernel")$covariance
   }}
-is_positive_semi_definite(rho_t)
+is_positive_semi_definite(rho_t) # False as expected
 
 
 unique_covariances_est = rho_t[lower.tri(rho_t)]
@@ -94,3 +95,29 @@ ggplot(data, aes(x = Distance, y = Covariance, color = Type)) +
   theme_minimal() +  # Use a minimal theme for cleaner look
   scale_color_manual(values = c("blue", "red")) +  # Set colors for the lines
   theme(legend.title = element_blank())  # Remove legend title
+
+
+
+
+
+
+
+
+
+
+
+
+# Load the ggplot2 library
+library(ggplot2)
+
+# Create a data frame with values of x and corresponding y = exp(-x)
+x_values <- seq(0, 10, by = 0.1)
+y_values <- exp(-x_values)
+data <- data.frame(x = x_values, y = y_values)
+
+# Create the ggplot
+ggplot(data, aes(x = x, y = y)) +
+  geom_line(color = "blue", size = 0.8) +  # Set line color to blue and make it thinner
+  labs(x = "x", y = "exp(-x)", title = "Exponential Function: exp(-x)") +
+  theme_minimal()  # Use a minimal theme for a clean look
+
