@@ -263,3 +263,74 @@ kernel_cov_flo <- function(t1, t2, X, grid, bandwidth,
   return(list(covariance = numerator / denominator, weights = matrix(K_val, n, n)))
 }
 
+
+#-------------------------------------------------------------------------------
+kernel_function <- function(t_diff, h, kernel_type = "triangular") {
+  # Kernel function: default is triangular
+  if (kernel_type == "triangular") {
+    return(pmax(1 - abs(t_diff) / h, 0))
+  } else {
+    stop(paste("Kernel type", kernel_type, "not recognized"))
+  }
+}
+
+nonparametric_covariance_estimator <- function(X, t, h, kernel_type = "triangular") {
+  # Computes the nonparametric covariance estimator for a stationary random field
+  #
+  # Args:
+  #   X: Matrix of observed data points (n x d) where n is the number of points and d is the dimension
+  #   t: Vector of time points where the covariance function is estimated
+  #   h: Bandwidth parameter for kernel smoothing
+  #   kernel_type: The type of kernel to use
+  #
+  # Returns:
+  #   Vector of estimated covariance values at the time points t
+  
+  n <- nrow(X)
+  d <- ncol(X)
+  p_hat <- numeric(length(t))
+  
+  # Compute the mean of the observed data
+  X_mean <- colMeans(X)
+  
+  # Loop over time points t
+  for (k in seq_along(t)) {
+    t_k <- t[k]
+    numerator_sum <- 0
+    denominator_sum <- 0
+    
+    # Double summation over i and j
+    for (i in 1:n) {
+      for (j in 1:n) {
+        t_diff <- t_k - sqrt(sum((X[i, ] - X[j, ])^2))  # Euclidean distance between points i and j
+        kernel_value <- kernel_function(t_diff, h, kernel_type)
+        
+        # Compute the difference between X[i] and X_mean, and X[j] and X_mean
+        X_ij_diff <- (X[i, ] - X_mean) * (X[j, ] - X_mean)
+        numerator_sum <- numerator_sum + kernel_value * sum(X_ij_diff)
+        denominator_sum <- denominator_sum + kernel_value
+      }
+    }
+    
+    # Calculate the estimate p_hat for time t_k
+    if (denominator_sum != 0) {
+      p_hat[k] <- numerator_sum / denominator_sum
+    } else {
+      p_hat[k] <- 0  # Handle case where denominator is zero
+    }
+  }
+  
+  return(p_hat)
+}
+
+# Example usage
+set.seed(123)
+n <- 100  # Number of observations
+d <- 2    # Dimension of the random field
+X <- matrix(rnorm(n * d), n, d)  # Simulated data
+t <- seq(0, 5, length.out = 100)  # Time points where the covariance is estimated
+h <- 0.4  # Bandwidth
+
+p_hat <- nonparametric_covariance_estimator(X, t, h)
+print(p_hat)
+

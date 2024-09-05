@@ -243,3 +243,84 @@ true_covariance_value_diff <- sigma^2 * exp(-dist_x / phi) * exp(-dist_y / phi)
 print(true_covariance_value_diff)
 
 #-------------------------------------------------------------------------------
+# SIMULATION from the Paper
+
+set.seed(1234)
+tdim = 200
+grid = data.frame(t = runif(tdim, 0, 40))
+
+exp_cov = function(grid){
+  return(exp(-as.matrix(dist(grid, method = "euclidean")) * 1.98))
+}
+true_cov_paper = exp_cov(grid)
+# Calculate the pairwise distances
+pairwise_distances <- as.matrix(dist(grid, method = "euclidean"))
+
+# Extract unique distances and corresponding covariances
+unique_distances <- pairwise_distances[lower.tri(pairwise_distances)]
+unique_covariances <- true_cov_paper[lower.tri(true_cov_paper)]
+
+# Create the plot
+plot(unique_distances, unique_covariances, 
+     xlab = "Distance", 
+     ylab = "Covariance", 
+     main = "Covariance vs Distance",
+     pch = 19, col = "blue")
+
+is_positive_semi_definite(true_cov_paper)
+
+plot_matrix(exp_cov(grid), labels = F)
+
+Xpaper =  mvrnorm(n = 1, mu = rep(0, nrow(grid)), Sigma = true_cov_paper)
+bandwidth = 0.4
+
+kernel_cov_1d = function(t1, t2, X, grid, bandwidth,
+                      kernel_function="gaussian_kernel"){
+  # COMPUTES THE COVARIANCE ESTIMATOR
+  
+  # Ensure the kernel_function is correctly specified
+  kernel_fun = switch(
+    kernel_function,
+    gaussian_kernel = gaussian_kernel,
+    epanechnikov_kernel = epanechnikov_kernel,
+    rechteck_kernel = rechteck_kernel,
+    triangle_kernel = triangle_kernel,
+    stop("Specify either gaussian_kernel or epanechnikov_kernel
+         or rechteck_kernel or or triangle_kernel kernel")
+  )
+  
+  Xbar = mean(X) # Sample mean of the simulated values X
+  demeaned_X = X - Xbar # X- Xbar
+  
+  # Lags between the two points
+  lag = t1 - t2
+  
+  # Berechnet die Differenzen zwischen allen x-Koordinaten der Punkte im Raster
+  diff_t = outer(grid$t, grid$t, "-")
+
+  
+  # Apply the chosen kernel
+  k_t = kernel_fun(lag - diff_t, bandwidth)
+
+  X_ij = outer(demeaned_X, demeaned_X, "*") 
+  
+  #weight = weight_function(t1,t2)
+  
+  # Numerator
+  numerator = sum(k_t * X_ij)
+  # Denominator
+  denominator = sum(k_t)
+  
+  # Verhindert eine Division durch Null, falls der Nenner Null ist
+  if (denominator == 0) return(list(covariance = NA, weights = k_t)) 
+  
+  return(list(covariance = numerator / denominator, weights = k_t))
+  
+}
+
+rho_t = matrix(NA, nrow = nrow(grid), ncol = nrow(grid))
+for(i in 1:nrow(grid)){
+  for(j in 1:nrow(grid)){
+  rho_t[i,j] = kernel_cov_1d(as.numeric(grid[i,]), as.numeric(grid[j, ]),
+                             Xpaper, grid, bandwidth, "triangle_kernel")
+}}
