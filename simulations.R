@@ -1,4 +1,4 @@
-# MASTERARBEIT DARWIN GITHUB
+# MASTERARBEIT DARWIN 
 #-------------------------------------------------------------------------------
 if (!require(MASS)) install.packages("MASS"); library(MASS)
 if (!require(ggplot2)) install.packages("ggplot2"); library(ggplot2)

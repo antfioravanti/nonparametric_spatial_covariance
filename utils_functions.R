@@ -93,12 +93,7 @@ rechteck_kernel <- function(x, bandwidth) {
 
 triangle_kernel <- function(x, bandwidth) {
   # TRIANGLE KERNEL FUNKTION
-  indicator <- ifelse(abs(x) <= 1, 1, 0)
-  
-  # Berechne den Kernel-Wert
-  kernel_value <- (1 - abs(x)) * indicator / bandwidth
-  
-  return(kernel_value)
+  return(ifelse(abs(x / bandwidth) <= 1, (1 - abs(x / bandwidth)), 0))
 }
 
 #-------------------------------------------------------------------------------
@@ -193,7 +188,7 @@ kernel_cov_euclidean <- function(t1, t2, X, grid, bandwidth,
   
   X_ij <- outer(demeaned_X, demeaned_X, "*") 
   
-  weight = weight_function(t1,t2)
+  #weight = weight_function(t1,t2)
   
   # Zähler
   numerator <- sum(K_vals * X_ij)
@@ -204,7 +199,7 @@ kernel_cov_euclidean <- function(t1, t2, X, grid, bandwidth,
   # Verhindert eine Division durch Null, falls der Nenner Null ist
   if (denominator == 0) return(list(covariance = NA, weights = K_vals)) 
   
-  return(list(covariance = numerator * weight / denominator, weights = K_vals))
+  return(list(covariance = numerator / denominator, weights = K_vals))
 }
 
 #-------------------------------------------------------------------------------
