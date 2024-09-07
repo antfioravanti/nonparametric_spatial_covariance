@@ -39,38 +39,6 @@ cov_exponential = function(grid, sigma, phi, method = "euclidean") {
 }
 
 #-------------------------------------------------------------------------------
-# Gneiting covariance function
-cov_gneiting <- function(grid, sigma, a, c, beta, method = "euclidean") {
-  # COMPUTES THE ANALYTICAL COVARIANCE MATRIX WITH GNEITING
-  # Can either be based on eucleadian distance or on the absolute difference
-  if(!sum(method == c("difference", "euclidean"))){
-    print("Specify either euclidean or difference method")
-  }
-  
-  if(method == "euclidean"){
-    # Euclidean distance
-    h <- as.matrix(dist(grid, method = "euclidean"))
-    
-    #covariance = sigma^2 / (((a * abs(h) + 1)^2) * ((b * abs(h))^2 + 1)^1.5)
-    
-    covariance = (sigma^2 / (a * abs(h) + 1)) * 
-      exp(-c * abs(h) / (a * abs(h) + 1)^(beta / 2))
-    
-  }else if (method == "difference"){
-    # Absolute difference
-    h1 <- abs(outer(grid$x, grid$x, "-"))
-    h2 <- abs(outer(grid$y, grid$y, "-"))
-    
-    #covariance = sigma^2 / (((a * abs(h2) + 1)^2) * ((b * abs(h1))^2 + 1)^1.5)
-    
-    covariance = (sigma^2 / (a * h2 + 1)) * 
-      exp(-c * h1 / (a * h2 + 1)^(beta / 2))
-  }
-  return(covariance)
-  
-}
-
-#-------------------------------------------------------------------------------
 #  Kernels
 #-------------------------------------------------------------------------------
 
@@ -96,6 +64,16 @@ triangle_kernel <- function(x, bandwidth) {
   return(ifelse(abs(x / bandwidth) <= 1, (1 - abs(x / bandwidth)), 0))
 }
 
+cubic_b_spline_kernel <- function(x, bandwidth) {
+  # Normalize the distance
+  u <- x / bandwidth
+  
+  # Cubic B-spline kernel formula
+  kernel_value <- 0.5 * exp(-abs(u) / sqrt(2)) * (sin(abs(u) / sqrt(2)) + pi / 4)
+  
+  return(kernel_value)
+}
+
 #-------------------------------------------------------------------------------
 # Estimators 
 #-------------------------------------------------------------------------------
@@ -104,7 +82,6 @@ weight_function <- function(t1,t2){
   log <- sqrt((t1[1] - t2[1])^2 + (t1[2] - t2[2])^2)
   ifelse(abs(log) <= 10, 1, 0)
 }
-
 
 # Vektorisierte Kernel-Kovarianzfunktion
 
@@ -119,8 +96,10 @@ kernel_cov = function(t1, t2, X, grid, bandwidth,
     epanechnikov_kernel = epanechnikov_kernel,
     rechteck_kernel = rechteck_kernel,
     triangle_kernel = triangle_kernel,
+    cubic_b_spline_kernel = cubic_b_spline_kernel,
     stop("Specify either gaussian_kernel or epanechnikov_kernel
-         or rechteck_kernel or or triangle_kernel kernel")
+         or rechteck_kernel or triangle_kernel kernel 
+         or or cubic_b_spline_kernel")
   )
   
   Xbar = mean(X) # Sample mean of the simulated values X
@@ -164,14 +143,16 @@ kernel_cov_euclidean <- function(t1, t2, X, grid, bandwidth,
   # COMPUTES THE COVARIANCE ESTIMATOR BASED ON EUCLIDEAN DISTANCE
   
   # Ensure the kernel_function is correctly specified
-  kernel_fun <- switch(
+  kernel_fun = switch(
     kernel_function,
     gaussian_kernel = gaussian_kernel,
     epanechnikov_kernel = epanechnikov_kernel,
     rechteck_kernel = rechteck_kernel,
     triangle_kernel = triangle_kernel,
+    cubic_b_spline_kernel = cubic_b_spline_kernel,
     stop("Specify either gaussian_kernel or epanechnikov_kernel
-         or rechteck_kernel or or triangle_kernel kernel")
+         or rechteck_kernel or triangle_kernel kernel 
+         or or cubic_b_spline_kernel")
   )
   
   Xbar <- mean(X) # Sample mean of the simulated values X
@@ -208,15 +189,18 @@ kernel_cov_euclidean <- function(t1, t2, X, grid, bandwidth,
 kernel_cov_flo <- function(t1, t2, X, grid, bandwidth,
                            kernel_function="gaussian_kernel") {
   # Ensure the kernel_function is correctly specified
-  kernel_fun <- switch(
+  kernel_fun = switch(
     kernel_function,
     gaussian_kernel = gaussian_kernel,
     epanechnikov_kernel = epanechnikov_kernel,
     rechteck_kernel = rechteck_kernel,
     triangle_kernel = triangle_kernel,
+    cubic_b_spline_kernel = cubic_b_spline_kernel,
     stop("Specify either gaussian_kernel or epanechnikov_kernel
-            or rechteck_kernel or triangle_kernel kernel")
+         or rechteck_kernel or triangle_kernel kernel 
+         or or cubic_b_spline_kernel")
   )
+  
   
   # Sample mean of the simulated values X
   Xbar <- mean(X)
@@ -255,6 +239,57 @@ kernel_cov_flo <- function(t1, t2, X, grid, bandwidth,
     return(list(covariance = NA, weights = matrix(0, n, n)))
   }
   
-  return(list(covariance = numerator / denominator, weights = matrix(K_val, n, n)))
+  return(list(covariance = numerator / denominator, 
+              weights = matrix(K_val, n, n)))
+}
+
+#-------------------------------------------------------------------------------
+
+## Vektorisierte Kernel-Kovarianzfunktion
+kernel_cov_vec = function(t1, t2, X, grid, bandwidth, 
+                          kernel_function = "gaussian_kernel"){
+  # Ensure the kernel_function is correctly specified
+  kernel_fun = switch(
+    kernel_function,
+    "gaussian_kernel" = gaussian_kernel,
+    "epanechnikov_kernel" = epanechnikov_kernel,
+    "rechteck_kernel" = rechteck_kernel,
+    "triangle_kernel" = triangle_kernel,
+    "cubic_b_spline_kernel" = cubic_b_spline_kernel,
+    stop("Specify either 'gaussian_kernel' or 'epanechnikov_kernel' or 
+         'rechteck_kernel' or 'triangle_kernel' or 'cubic_b_spline_kernel'")
+  )
+  
+  Xbar = mean(X) # Sample mean of the simulated values X
+  demeaned_X = X - Xbar # X - Xbar
+  n <- length(grid$x) # Number of points in the grid
+  
+  X_ij = outer(demeaned_X, demeaned_X, "*") 
+  var = mean(demeaned_X^2)
+  cov1 = X_ij / var
+  
+  # Lags between the two points
+  lag_x = t1[1] - t2[1]
+  lag_y = t1[2] - t2[2]
+  
+  # Berechnet die Differenzen zwischen allen x-Koordinaten der Punkte im Raster
+  diff_x = outer(grid$x, grid$x, "-")
+  # Berechnet die Differenzen zwischen allen y-Koordinaten der Punkte im Raster
+  diff_y = outer(grid$y, grid$y, "-")
+  
+  # Apply the chosen kernel
+  k_x = kernel_fun(lag_x - diff_x, bandwidth)
+  k_y = kernel_fun(lag_y - diff_y, bandwidth)
+  K_vals = k_x * k_y
+  
+  # Numerator
+  numerator = sum(K_vals * cov1)
+  # Denominator
+  denominator = sum(K_vals)
+  
+  # Avoid division by zero
+  if (denominator == 0) return(list(covariance = NA, weights = K_vals)) 
+  
+  return(list(covariance = numerator / denominator, weights = K_vals))
 }
 

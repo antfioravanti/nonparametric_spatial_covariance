@@ -28,7 +28,7 @@ text(grid$x, grid$y, labels = 1:nrow(grid), pos = 3, cex = 0.7, col = "red")
 
 sigma = 1
 phi = 1/3
-true_covariance = cov_exponential(grid, sigma, phi, method = "difference")
+true_covariance = cov_exponential(grid, sigma, phi, method = "euclidean")
 
 #-------------------------------------------------------------------------------
 #sigma = 1
@@ -61,9 +61,9 @@ ggplot(grid, aes(x = x, y = y, color = sim)) +
 bandwidth = 0.21 # Beispiel-Bandbreite
 
 #kernel = "gaussian_kernel"
-kernel = "epanechnikov_kernel"
+#kernel = "epanechnikov_kernel"
 #kernel = "rechteck_kernel"
-#kernel = "triangle_kernel"
+kernel = "triangle_kernel"
 
 tic("matrix cov estimation")
 est_cov_matrix = matrix(NA, nrow = nrow(grid), ncol = nrow(grid))
@@ -71,13 +71,14 @@ est_corr_matrix = matrix(NA, nrow = nrow(grid), ncol = nrow(grid))
 
 for(i in 1:nrow(grid)) {
   for(j in 1:nrow(grid)) {
-    est_cov_matrix[i,j] = kernel_cov(as.numeric(grid[i, 1:2]),
+    est_cov_matrix[i,j] = kernel_cov_vec(as.numeric(grid[i, 1:2]),
                                      as.numeric(grid[j, 1:2]),
                                      X, grid[,1:2],
                                      bandwidth, kernel)$covariance
   }
 }
 toc()
+
 is_positive_semi_definite(est_cov_matrix)
 
 tic(" auto matrix cov estimation")
@@ -93,153 +94,19 @@ toc()
 
 # Prüfen, ob die Diagonalelemente 1 sind
 diag(est_corr_matrix)
+
 is_positive_semi_definite(est_corr_matrix)
 
-# Überprüfen, ob die Matrix symmetrisch ist
-is_symmetric <- all(est_cov_matrix == t(est_cov_matrix))
-is_symmetric
-is_symmetric_corr <- all(est_corr_matrix == t(est_corr_matrix))
-is_symmetric_corr
-
-#-------------------------------------------------------------------------------
-# Kernel_cov_flo is the covariance without vertorisierung
-tic("matrix cov flo estimation")
-est_cov_matrix_flo = matrix(NA, nrow = nrow(grid), ncol=nrow(grid))
-est_corr_matrix_flo = matrix(NA, nrow = nrow(grid), ncol = nrow(grid))
-
-for(i in 1:nrow(grid)){
-  for(j in 1:nrow(grid)){
-    est_cov_matrix_flo[i,j] = kernel_cov_flo(as.numeric(grid[i, 1:2]),
-                                     as.numeric(grid[j, 1:2]),
-                                     X, grid[,1:2],
-                                     bandwidth, kernel)$covariance
-    
-  }
-}
-toc()
-
-tic(" auto matrix cov flo estimation")
-# Berechne die Autokorrelationsmatrix
-for(i in 1:nrow(grid)) {
-  for(j in 1:nrow(grid)) {
-    est_corr_matrix_flo[i,j] = est_cov_matrix_flo[i,j] / 
-      sqrt(est_cov_matrix_flo[i,i] * est_cov_matrix_flo[j,j])
-  }
-}
-toc()
-
-# Prüfen, ob die Diagonalelemente 1 sind
-diag(est_corr_matrix_flo)
-is_positive_semi_definite(est_corr_matrix_flo)
-
-#-------------------------------------------------------------------------------
-#-------------------------------------------------------------------------------
-
-#Check estimated covariance is positive semidefinite
-is_positive_semi_definite(est_cov_matrix)
-is_positive_semi_definite(est_cov_matrix_flo)
 
 #-------------------------------------------------------------------------------
 # Norm 12.17411
 norm(est_cov_matrix - true_covariance, type = "2")
 
-#norm(est_cov_matrix_flo - true_covariance, type = "2")
-
 #-------------------------------------------------------------------------------
 # Norm with autokorellation
 norm(est_corr_matrix - true_covariance, type = "2")
 
-#norm(est_corr_matrix_flo - true_covariance, type = "2")
-
-#-------------------------------------------------------------------------------
-#-------------------------------------------------------------------------------
-#-------------------------------------------------------------------------------
-# Try to make the matrix positiv with fourier transformation
-
-# Benötigte Bibliotheken
-library(pracma) # Für FFT (Fast Fourier Transform)
-
-# 2. Fourier-Transformation auf jede Zeile anwenden
-fft_rows <- t(apply(est_cov_matrix_flo, 1, fft))
-
-# 3. Truncation: Setzen Sie alle negativen Frequenzkomponenten auf Null
-fft_rows[Re(fft_rows) < 0] <- 0
-
-# 4. Inverse Fourier-Transformation auf jede Zeile anwenden
-ifft_rows <- t(apply(fft_rows, 1, function(x) Re(ifft(x))))
-
-# 5. Fourier-Transformation auf jede Spalte anwenden
-fft_cols <- apply(ifft_rows, 2, fft)
-
-# 6. Truncation: Setzen Sie alle negativen Frequenzkomponenten auf Null
-fft_cols[Re(fft_cols) < 0] <- 0
-
-# 7. Inverse Fourier-Transformation auf jede Spalte anwenden
-corrected_cov_matrix <- apply(fft_cols, 2, function(x) Re(ifft(x)))
-
-# 8. Sicherstellen, dass die Matrix symmetrisch ist
-corrected_cov_matrix <- (corrected_cov_matrix + t(corrected_cov_matrix)) / 2
-
-# Setzen Sie eventuell sehr kleine negative Eigenwerte auf 0, um die PSD zu garantieren
-eigen_values <- eigen(corrected_cov_matrix)$values
-if (any(eigen_values < 0)) {
-  eig_decomp <- eigen(corrected_cov_matrix)
-  eig_values_corrected <- pmax(eig_decomp$values, 0)
-  corrected_cov_matrix <- eig_decomp$vectors %*% diag(eig_values_corrected)
-  %*% t(eig_decomp$vectors)
-}
-
-is_positive_semi_definite(corrected_cov_matrix)
-#-------------------------------------------------------------------------------
-# try to find the next positiv corelation matrix 
-# Installieren und Laden des Matrix-Pakets, falls noch nicht geschehen
-if (!require(Matrix)) install.packages("Matrix", dependencies=TRUE)
-library(Matrix)
-
-# Berechnung der nächstliegenden PSD-Matrix
-near_psd_matrix <- nearPD(est_corr_matrix)$mat
-
-# Überprüfung, ob die Matrix jetzt PSD ist
-is_positive_semi_definite <- function(mat) {
-  eigen_values <- eigen(mat, symmetric = TRUE, only.values = TRUE)$values
-  all(eigen_values >= 0)
-}
-
-# Testen, ob die korrigierte Matrix jetzt positiv semi-definit ist
-is_positive_semi_definite(near_psd_matrix)
-
-norm(near_psd_matrix - true_covariance, type = "2")
-
-#-------------------------------------------------------------------------------
-#-------------------------------------------------------------------------------
-# try to make test with two point
-# Test mit 2 belibiege Punkte
-t1 <- c(0.1, 0.3)
-t2 <- c(0.09, 0.29)
-
-# Schätze die Kovarianz zwischen t1 und t2
-#cov_estimate_eucli <- kernel_cov_euclidean(t1, t2, X,
-                                           #grid[,1:2], bandwidth, kernel)
-
-cov_estimate_diff <- kernel_cov(t1, t2, X, grid[,1:2], bandwidth, kernel)
-
-# Gib das Ergebnis aus
-
-#print(cov_estimate_eucli$covariance)
-
-print(cov_estimate_diff$covariance)
 
 
-#distance <- sqrt(sum((t1 - t2)^2))
-
-#true_covariance_value_eucli <- sigma^2 * exp(-distance / phi)
-#print(true_covariance_value_eucli)
-
-dist_x <- abs(t1[1] - t2[1])
-dist_y <- abs(t1[2] - t2[2])
 
 
-true_covariance_value_diff <- sigma^2 * exp(-dist_x / phi) * exp(-dist_y / phi)
-print(true_covariance_value_diff)
-
-#-------------------------------------------------------------------------------
