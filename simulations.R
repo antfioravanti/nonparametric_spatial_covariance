@@ -11,8 +11,8 @@ set.seed(1234)# set seed for replication
 #-------------------------------------------------------------------------------
 # SIMULATION OF GRID
 
-xdim = 30 # horizontal size
-ydim = 30 #vertical size
+xdim = 20 # horizontal size
+ydim = 20 #vertical size
 
 # Erzeugt zufällige Koordinaten im Bereich [0, 1] für das Raster
 grid = data.frame(x = runif(xdim, 0, 1), y = runif(ydim, 0, 1))
@@ -29,15 +29,6 @@ text(grid$x, grid$y, labels = 1:nrow(grid), pos = 3, cex = 0.7, col = "red")
 sigma = 1
 phi = 1/3
 true_covariance = cov_exponential(grid, sigma, phi, method = "euclidean")
-
-#-------------------------------------------------------------------------------
-#sigma = 1
-#a = 0.1
-#c = 0.5
-#beta = 0
-#true_covariance_gn <- cov_gneiting(grid,sigma, a, c,beta,method = "difference")
-
-#-------------------------------------------------------------------------------
 
 #Check covariance is positive semidefinite
 is_positive_semi_definite(true_covariance)
@@ -58,12 +49,17 @@ ggplot(grid, aes(x = x, y = y, color = sim)) +
 #-------------------------------------------------------------------------------
 # ESTIMATE SPATIAL COVARIANCE
 
-bandwidth = 0.21 # Beispiel-Bandbreite
+bandwidth = 0.05 # (Tunning bandwidth)
 
 #kernel = "gaussian_kernel"
+
 #kernel = "epanechnikov_kernel"
+
 #kernel = "rechteck_kernel"
-kernel = "triangle_kernel"
+
+#kernel = "triangle_kernel"
+
+kernel = "cubic_b_spline_kernel"
 
 tic("matrix cov estimation")
 est_cov_matrix = matrix(NA, nrow = nrow(grid), ncol = nrow(grid))
@@ -71,7 +67,7 @@ est_corr_matrix = matrix(NA, nrow = nrow(grid), ncol = nrow(grid))
 
 for(i in 1:nrow(grid)) {
   for(j in 1:nrow(grid)) {
-    est_cov_matrix[i,j] = kernel_cov_vec(as.numeric(grid[i, 1:2]),
+    est_cov_matrix[i,j] = kernel_cov_euclidean(as.numeric(grid[i, 1:2]),
                                      as.numeric(grid[j, 1:2]),
                                      X, grid[,1:2],
                                      bandwidth, kernel)$covariance
@@ -107,6 +103,21 @@ norm(est_cov_matrix - true_covariance, type = "2")
 norm(est_corr_matrix - true_covariance, type = "2")
 
 
+#-------------------------------------------------------------------------------
+
+tic("matrix cov estimation")
+est_cov_matrix = matrix(NA, nrow = nrow(grid), ncol = nrow(grid))
 
 
+for(i in 1:nrow(grid)) {
+  for(j in 1:nrow(grid)) {
+    est_cov_matrix[i,j] = kernel_cov_vec(X, grid[,1:2],
+                                               bandwidth, kernel)$covariance
+  }
+}
+toc()
+
+is_positive_semi_definite(est_cov_matrix)
+
+norm(est_cov_matrix - true_covariance, type = "2")
 

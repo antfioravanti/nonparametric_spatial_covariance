@@ -245,10 +245,9 @@ kernel_cov_flo <- function(t1, t2, X, grid, bandwidth,
 
 #-------------------------------------------------------------------------------
 
-## Vektorisierte Kernel-Kovarianzfunktion
-kernel_cov_vec = function(t1, t2, X, grid, bandwidth, 
+kernel_cov_vec = function(X, grid, bandwidth, 
                           kernel_function = "gaussian_kernel"){
-  # Ensure the kernel_function is correctly specified
+  # Kernel Funktion auswählen
   kernel_fun = switch(
     kernel_function,
     "gaussian_kernel" = gaussian_kernel,
@@ -260,36 +259,36 @@ kernel_cov_vec = function(t1, t2, X, grid, bandwidth,
          'rechteck_kernel' or 'triangle_kernel' or 'cubic_b_spline_kernel'")
   )
   
-  Xbar = mean(X) # Sample mean of the simulated values X
-  demeaned_X = X - Xbar # X - Xbar
-  n <- length(grid$x) # Number of points in the grid
+  n <- nrow(grid)
   
-  X_ij = outer(demeaned_X, demeaned_X, "*") 
-  var = mean(demeaned_X^2)
-  cov1 = X_ij / var
+  Xbar = mean(X)  # Mittelwert von X
+  demeaned_X = X - Xbar  # Zentrierte Werte
   
-  # Lags between the two points
-  lag_x = t1[1] - t2[1]
-  lag_y = t1[2] - t2[2]
+  delta_ij = as.matrix(dist(grid, method = "euclidean", diag = TRUE, upper = TRUE))  # Distanzen
   
-  # Berechnet die Differenzen zwischen allen x-Koordinaten der Punkte im Raster
-  diff_x = outer(grid$x, grid$x, "-")
-  # Berechnet die Differenzen zwischen allen y-Koordinaten der Punkte im Raster
-  diff_y = outer(grid$y, grid$y, "-")
+  K_vals = matrix(0, n, n)  # Speicher für Kernel-Werte
+  cov_vals = matrix(0, n, n)  # Speicher für Kovarianz-Werte
   
-  # Apply the chosen kernel
-  k_x = kernel_fun(lag_x - diff_x, bandwidth)
-  k_y = kernel_fun(lag_y - diff_y, bandwidth)
-  K_vals = k_x * k_y
+  for (i in 1:n) {
+    for (j in 1:n) {
+      # Kovarianz berechnen
+      X_ij <- (X[i] - Xbar) * (X[j] - Xbar)
+      var = mean((X - Xbar)^2)  # Varianz der Stichprobe
+      cov_vals[i, j] = X_ij / var
+      
+      # Kernel-Wert berechnen
+      K_vals[i, j] = kernel_fun(delta_ij[i, j], bandwidth)
+    }
+  }
   
-  # Numerator
-  numerator = sum(K_vals * cov1)
-  # Denominator
+  # Zähler und Nenner berechnen
+  numerator = sum(K_vals * cov_vals)
   denominator = sum(K_vals)
   
-  # Avoid division by zero
+  # Vermeidung von Division durch 0
   if (denominator == 0) return(list(covariance = NA, weights = K_vals)) 
   
+  # Ergebnis zurückgeben
   return(list(covariance = numerator / denominator, weights = K_vals))
 }
 
