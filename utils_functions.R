@@ -12,7 +12,7 @@ is_positive_semi_definite = function(matrix) {
 }
 
 #-------------------------------------------------------------------------------
-# Analytical Covariances
+# ANALYTICAL COVARIANCES
 #-------------------------------------------------------------------------------
 
 cov_exponential = function(grid, sigma, phi, method = "euclidean") {
@@ -70,6 +70,51 @@ cov_gneiting <- function(grid, sigma, a, c, beta, method = "euclidean") {
   
 }
 
+
+# MODIFIED EXPONENTIAL COVARIANCE
+
+
+# MODIFIED EXPONENTIAL
+ModifiedExponentialCovariance = function(grid,
+                                         sigma = 1,
+                                         alpha1 = 1,
+                                         alpha2 = 1,
+                                         lambda1 = 1,
+                                         lambda2 = 1,
+                                         beta = 0,
+                                         test_sep = F) {
+  # Args
+  #   alpha1 and alpha 2 control the smoothness in each dimension
+  #   lambda1 and lamda 2 control the range in each dimension
+  #   beta controls the separability
+  #     beta = 0  separable
+  #     beta = 1 non-separable
+  
+  
+  # Check that grid has the correct column names "t1" and "t2"
+  expected_names <- c("t1", "t2")
+  
+  if (!all(colnames(grid) == expected_names)) {
+    stop("Error: The grid must have column names 't1' and 't2'.")
+  }
+  
+  # Compute pairwise differences for each dimension
+  h1_diff = outer(grid$t1, grid$t1, "-")  # Difference in first dimension
+  h2_diff = outer(grid$t2, grid$t2, "-")  # Difference in second dimension
+  
+  cov = sigma^2 * exp(-(abs(h1_diff)^alpha1 / lambda1 +
+                          abs(h2_diff)^alpha2 / lambda2 + 
+                          beta * abs(h1_diff - h2_diff)))
+  if(test_sep == T){
+    cov_sep = sigma^2 * exp(-(abs(h1_diff)^alpha1 / lambda1)-beta*abs(h1_diff)) * 
+      exp(-(abs(h2_diff)^alpha2 / lambda2) -beta*abs(h2_diff))
+    
+    norm_diff = norm(cov_sep - cov, type = "2")
+    return(list(covariance = cov, norm_diff = norm_diff))
+  }else{
+    return(cov)
+  }
+}
 #-------------------------------------------------------------------------------
 #  Kernels
 #-------------------------------------------------------------------------------
@@ -146,11 +191,12 @@ kernel_cov = function(t1, t2, X, grid, bandwidth,
   K_vals = k_x * k_y
 
   X_ij = outer(demeaned_X, demeaned_X, "*") 
-  
+  n = length(X)
+  Xsum =  1/n * sum(X)
   #weight = weight_function(t1,t2)
   
   # Numerator
-  numerator = sum(K_vals * X_ij)
+  numerator = sum(K_vals * (X_ij / Xsum))
   # Denominator
   denominator = sum(K_vals)
   
