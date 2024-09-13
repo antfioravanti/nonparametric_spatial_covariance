@@ -5,14 +5,15 @@ if (!require(ggplot2)) install.packages("ggplot2"); library(ggplot2)
 if (!require(foreach)) install.packages("foreach"); library(foreach)
 if (!require(doParallel)) install.packages("doParallel"); library(doParallel)
 if (!require(tictoc)) install.packages("tictoc"); library(tictoc)
+if (!require(reshape2)) install.packages("reshape2"); library(reshape2)
 setwd(file.path(dirname(rstudioapi::getActiveDocumentContext()$path)))
 source("utils_functions.R") # Upload functions in separate script
 set.seed(1234)# set seed for replication
 #-------------------------------------------------------------------------------
 # SIMULATION OF GRID
 
-xdim = 20 # horizontal size
-ydim = 20 #vertical size
+xdim = 50 # horizontal size
+ydim = 50 #vertical size
 
 # Erzeugt zufällige Koordinaten im Bereich [0, 1] für das Raster
 grid = data.frame(x = runif(xdim, 0, 1), y = runif(ydim, 0, 1))
@@ -29,6 +30,20 @@ text(grid$x, grid$y, labels = 1:nrow(grid), pos = 3, cex = 0.7, col = "red")
 sigma = 1
 phi = 1/3
 true_covariance = cov_exponential(grid, sigma, phi, method = "euclidean")
+
+sigma = 1
+alpha1 = 1
+alpha2 = 1
+lambda1 = 1
+lambda2 = 1
+true_covariance = ModifiedExponentialCovariance(grid,sigma,alpha1,alpha2,lambda1
+                                                ,lambda2,test_sep = T)$covariance
+
+#plot_matrix(grid, sigma = 1, phi = 5)
+#plot_matrix_modi(grid,sigma,alpha1,alpha2,lambda1, lambda2, test_sep = FALSE)
+
+
+#-------------------------------------------------------------------------------
 
 #Check covariance is positive semidefinite
 is_positive_semi_definite(true_covariance)
@@ -49,7 +64,7 @@ ggplot(grid, aes(x = x, y = y, color = sim)) +
 #-------------------------------------------------------------------------------
 # ESTIMATE SPATIAL COVARIANCE
 
-bandwidth = 0.05 # (Tunning bandwidth)
+bandwidth = 2 # Beispiel-Bandbreite
 
 #kernel = "gaussian_kernel"
 
@@ -57,14 +72,14 @@ bandwidth = 0.05 # (Tunning bandwidth)
 
 #kernel = "rechteck_kernel"
 
-#kernel = "triangle_kernel"
+kernel = "triangle_kernel"
 
-kernel = "cubic_b_spline_kernel"
+#kernel = "cubic_b_spline_kernel"
+
+#-------------------------------------------------------------------------------
 
 tic("matrix cov estimation")
 est_cov_matrix = matrix(NA, nrow = nrow(grid), ncol = nrow(grid))
-est_corr_matrix = matrix(NA, nrow = nrow(grid), ncol = nrow(grid))
-
 for(i in 1:nrow(grid)) {
   for(j in 1:nrow(grid)) {
     est_cov_matrix[i,j] = kernel_cov_euclidean(as.numeric(grid[i, 1:2]),
@@ -77,8 +92,8 @@ toc()
 
 is_positive_semi_definite(est_cov_matrix)
 
-tic(" auto matrix cov estimation")
-# Berechne die Autokorrelationsmatrix
+tic(" auto matrix cov estimation") # Berechne die Autokorrelationsmatrix
+est_corr_matrix = matrix(NA, nrow = nrow(grid), ncol = nrow(grid))
 for(i in 1:nrow(grid)) {
   for(j in 1:nrow(grid)) {
     est_corr_matrix[i,j] = est_cov_matrix[i,j] / 
@@ -103,21 +118,16 @@ norm(est_cov_matrix - true_covariance, type = "2")
 norm(est_corr_matrix - true_covariance, type = "2")
 
 
-#-------------------------------------------------------------------------------
-
 tic("matrix cov estimation")
 est_cov_matrix = matrix(NA, nrow = nrow(grid), ncol = nrow(grid))
-
-
 for(i in 1:nrow(grid)) {
   for(j in 1:nrow(grid)) {
     est_cov_matrix[i,j] = kernel_cov_vec(X, grid[,1:2],
-                                               bandwidth, kernel)$covariance
+                                      bandwidth, kernel)$covariance
   }
 }
 toc()
 
 is_positive_semi_definite(est_cov_matrix)
-
 norm(est_cov_matrix - true_covariance, type = "2")
 

@@ -38,6 +38,96 @@ cov_exponential = function(grid, sigma, phi, method = "euclidean") {
   return(covariance)
 }
 
+# MODIFIED EXPONENTIAL COVARIANCE
+
+
+# MODIFIED EXPONENTIAL
+ModifiedExponentialCovariance = function(grid,
+                                         sigma = 1,
+                                         alpha1 = 1,
+                                         alpha2 = 1,
+                                         lambda1 = 1,
+                                         lambda2 = 1,
+                                         beta = 0,
+                                         test_sep = F) {
+  # Args
+  #   alpha1 and alpha 2 control the smoothness in each dimension
+  #   lambda1 and lamda 2 control the range in each dimension
+  #   beta controls the separability
+  #     beta = 0  separable
+  #     beta = 1 non-separable
+  
+  
+  # Check that grid has the correct column names "x" and "y"
+  expected_names <- c("x", "y")
+  
+  if (!all(colnames(grid) == expected_names)) {
+    stop("Error: The grid must have column names 'x' and 'y'.")
+  }
+  
+  # Compute pairwise differences for each dimension
+  h1_diff = outer(grid$x, grid$x, "-")  # Difference in first dimension
+  h2_diff = outer(grid$y, grid$y, "-")  # Difference in second dimension
+  
+  cov = sigma^2 * exp(-(abs(h1_diff)^alpha1 / lambda1 +
+                          abs(h2_diff)^alpha2 / lambda2 + 
+                          beta * abs(h1_diff - h2_diff)))
+  if(test_sep == T){
+    cov_sep = sigma^2 * exp(-(abs(h1_diff)^alpha1 / lambda1)-beta*abs(h1_diff)) * 
+      exp(-(abs(h2_diff)^alpha2 / lambda2) -beta*abs(h2_diff))
+    
+    norm_diff = norm(cov_sep - cov, type = "2")
+    return(list(covariance = cov, norm_diff = norm_diff))
+  }else{
+    return(cov)
+  }
+}
+#-------------------------------------------------------------------------------
+
+# Funktion zum Plotten der Kovarianzmatrix
+plot_matrix <- function(grid, sigma, phi) {
+  # Erstellen der Kovarianzmatrix
+  true_covariance <- cov_exponential(grid, sigma, phi, method = "euclidean")
+  
+  # Umwandeln der Matrix in ein langes Format für ggplot2
+  cov_matrix_melted <- melt(true_covariance)
+  
+  # Plotten der Kovarianzmatrix
+  ggplot(cov_matrix_melted, aes(x = Var1, y = Var2, fill = value)) +
+    geom_tile() +
+    scale_fill_gradient(low = "white", high = "blue") +
+    labs(x = "Index 1", y = "Index 2", fill = "Covariance", 
+         title = paste("Covariance Matrix\nsigma =", sigma, ", phi =", phi)) +
+    theme_minimal()
+}
+
+plot_matrix_modi <- function(grid, sigma = 1, alpha1 = 1, alpha2 = 1, lambda1 = 1, 
+                        lambda2 = 1, beta = 0, test_sep = FALSE) {
+  # Compute covariance matrix using ModifiedExponentialCovariance function
+  cov_matrix <- ModifiedExponentialCovariance(grid, sigma, alpha1,
+                                              alpha2, lambda1, lambda2, beta,
+                                              test_sep)
+  
+  # Check if the result is a list (i.e., when test_sep = TRUE)
+  if (is.list(cov_matrix)) {
+    cov_matrix <- cov_matrix$covariance
+  }
+  
+  # Melt the covariance matrix for ggplot2
+  cov_melt <- melt(cov_matrix)
+  
+  # Create the plot
+  ggplot(data = cov_melt, aes(x = Var1, y = Var2, fill = value)) +
+    geom_tile() +
+    scale_fill_gradient2(midpoint = median(cov_melt$value),
+                         low = "blue", mid = "white", high = "red",
+                         space = "Lab", name="Covariance") +
+    theme_minimal() +
+    labs(x = "X", y = "Y", title = "Covariance Matrix") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+}
+
+#-------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------
 #  Kernels
 #-------------------------------------------------------------------------------
@@ -104,6 +194,7 @@ kernel_cov = function(t1, t2, X, grid, bandwidth,
   
   Xbar = mean(X) # Sample mean of the simulated values X
   demeaned_X = X - Xbar # X- Xbar
+  var = mean((X - Xbar)^2)  # Varianz der Stichprobe
   
   # Lags between the two points
   lag_x = t1[1] - t2[1]
@@ -121,10 +212,11 @@ kernel_cov = function(t1, t2, X, grid, bandwidth,
 
   X_ij = outer(demeaned_X, demeaned_X, "*") 
   
-  #weight = weight_function(t1,t2)
+  cov_vals = X_ij / var
+  
   
   # Numerator
-  numerator = sum(K_vals * X_ij)
+  numerator = sum(K_vals * cov_vals)
   # Denominator
   denominator = sum(K_vals)
   
@@ -157,7 +249,7 @@ kernel_cov_euclidean <- function(t1, t2, X, grid, bandwidth,
   
   Xbar <- mean(X) # Sample mean of the simulated values X
   demeaned_X <- X - Xbar # X - Xbar
-  
+  var = mean((X - Xbar)^2) 
   # Berechnet die Differenzen zwischen den beiden Punkten t1 und t2
   lag <- sqrt((t1[1] - t2[1])^2 + (t1[2] - t2[2])^2)
   
@@ -169,10 +261,10 @@ kernel_cov_euclidean <- function(t1, t2, X, grid, bandwidth,
   
   X_ij <- outer(demeaned_X, demeaned_X, "*") 
   
-  #weight = weight_function(t1,t2)
+  cov_vals = X_ij / var
   
   # Zähler
-  numerator <- sum(K_vals * X_ij)
+  numerator <- sum(K_vals * cov_vals)
   
   # Nenner
   denominator <- sum(K_vals)
@@ -205,7 +297,7 @@ kernel_cov_flo <- function(t1, t2, X, grid, bandwidth,
   # Sample mean of the simulated values X
   Xbar <- mean(X)
   demeaned_X <- X - Xbar # Demeaned X values
-  
+  var = mean((X - Xbar)^2) 
   # Number of points in the grid
   n <- length(grid$x)
   
@@ -225,11 +317,8 @@ kernel_cov_flo <- function(t1, t2, X, grid, bandwidth,
       k_y <- kernel_fun(((t1[2] - t2[2]) - diff_y),  bandwidth)
       K_val <- k_x * k_y
       
-      # Apply the weight function
-      #weight <- weight_function(t1, t2)
-      
       # Covariance components
-      numerator <- numerator + K_val * demeaned_X[i] * demeaned_X[j]
+      numerator <- numerator + K_val * ((demeaned_X[i] * demeaned_X[j]) / var)
       denominator <- denominator + K_val 
     }
   }
@@ -263,6 +352,7 @@ kernel_cov_vec = function(X, grid, bandwidth,
   
   Xbar = mean(X)  # Mittelwert von X
   demeaned_X = X - Xbar  # Zentrierte Werte
+  var = mean((X - Xbar)^2)  # Varianz der Stichprobe
   
   delta_ij = as.matrix(dist(grid, method = "euclidean", diag = TRUE, upper = TRUE))  # Distanzen
   
@@ -273,7 +363,6 @@ kernel_cov_vec = function(X, grid, bandwidth,
     for (j in 1:n) {
       # Kovarianz berechnen
       X_ij <- (X[i] - Xbar) * (X[j] - Xbar)
-      var = mean((X - Xbar)^2)  # Varianz der Stichprobe
       cov_vals[i, j] = X_ij / var
       
       # Kernel-Wert berechnen
