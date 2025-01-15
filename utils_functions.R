@@ -159,9 +159,10 @@ select_point_by_neighbour = function(grid,
     
     # Find the index of the selected point in the original grid
     selected_index = which(grid$x == selected_row$x & grid$y == selected_row$y)
-    
+    selected_row$type = "Border"
     # Return the selected point and its index
-    return(list(point = selected_row, index = selected_index))
+    return(list(point = selected_row[,c("x", "y", "type")], 
+                index = selected_index))
     
   } else {
     # For "many" and "few" choices
@@ -172,8 +173,10 @@ select_point_by_neighbour = function(grid,
     
     if (choice == "many") {
       selected_index = which.max(neighbor_counts)
+      grid$type = "Many"
     } else { # choice == "few"
       selected_index = which.min(neighbor_counts)
+      grid$type = "Few"
     }
     
     # Return the selected point and its index
@@ -286,6 +289,62 @@ kernel_cov = function(t1, t2, X, grid, bandwidth,
               count_zeros = count_zeros, 
               count_ones = count_ones))
 }
+
+get_distance_points <- function(grid, point_df, exclude_self = TRUE) {
+  # grid: A data.frame with 'x' and 'y' columns representing points
+  # point_df: A data.frame with exactly one row containing 'x' and 'y' columns
+  # exclude_self: If TRUE, excludes the reference point from the grid if present
+  
+  # Input Validation
+  if (!all(c("x", "y") %in% names(grid))) {
+    stop("The grid must contain 'x' and 'y' columns.")
+  }
+  
+  if (!is.data.frame(point_df) || nrow(point_df) != 1 || 
+      !all(c("x", "y") %in% names(point_df))) {
+    stop("The reference point must be a data.frame with exactly one row and 'x' and 'y' columns.")
+  }
+  
+  # Extract reference coordinates
+  ref_x <- point_df$x[1]
+  ref_y <- point_df$y[1]
+  
+  # Calculate Euclidean distances from the reference point to all grid points
+  distances <- sqrt((grid$x - ref_x)^2 + (grid$y - ref_y)^2)
+  
+  # Optionally exclude the reference point itself from the grid
+  if (exclude_self) {
+    same_point_indices <- which(grid$x == ref_x & grid$y == ref_y)
+    if (length(same_point_indices) > 0) {
+      distances[same_point_indices] <- Inf  # Assign infinite distance to exclude
+    }
+  }
+  
+  # Identify the Closest Point
+  closest_index <- which.min(distances)
+  closest_point <- grid[closest_index, ]
+  
+  # Identify the Medium-Distance Point
+  median_distance <- median(distances)
+  median_diff <- abs(distances - median_distance)
+  medium_index <- which.min(median_diff)
+  medium_point <- grid[medium_index, ]
+  
+  # Identify the Farthest Point
+  farthest_index <- which.max(distances)
+  farthest_point <- grid[farthest_index, ]
+  
+  # Compile the results into a single data frame
+  result <- data.frame(
+    type = c("Closest", "Medium", "Farthest"),
+    x = c(closest_point$x, medium_point$x, farthest_point$x),
+    y = c(closest_point$y, medium_point$y, farthest_point$y),
+    index = c(closest_index, medium_index, farthest_index)
+  )
+  
+  return(result)
+}
+
 
 #-------------------------------------------------------------------------------
 
