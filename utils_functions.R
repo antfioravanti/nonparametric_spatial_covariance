@@ -82,53 +82,104 @@ ModifiedExponentialCovariance = function(grid,
     return(cov)
   }
 }
+
+
+#-------------------------------------------------------------------------------
+# GRID
 #-------------------------------------------------------------------------------
 
-# Funktion zum Plotten der Kovarianzmatrix
-plot_matrix <- function(grid, sigma, phi) {
-  # Erstellen der Kovarianzmatrix
-  true_covariance <- cov_exponential(grid, sigma, phi, method = "euclidean")
+select_point_by_neighbour = function(grid,
+                                     choice = c("many", "few", "border"),
+                                     perc = 0.2,
+                                     margin = 0.05,
+                                     randomize = TRUE) {
+  # grid: A data.frame with 'x' and 'y' columns representing points
+  # choice: 
+  #   "many" to select a point with many neighbors,
+  #   "few" for few neighbors,
+  #   "border" for an isolated point near the border
+  # perc: Percentage of Maximum Distance to set threshold
+  # margin: Proximity to border (0 < margin < 0.5) for "border" choice
+  # randomize: If TRUE, randomly select among multiple candidates
   
-  # Umwandeln der Matrix in ein langes Format für ggplot2
-  cov_matrix_melted <- melt(true_covariance)
-  
-  # Plotten der Kovarianzmatrix
-  ggplot(cov_matrix_melted, aes(x = Var1, y = Var2, fill = value)) +
-    geom_tile() +
-    scale_fill_gradient(low = "white", high = "blue") +
-    labs(x = "Index 1", y = "Index 2", fill = "Covariance", 
-         title = paste("Covariance Matrix\nsigma =", sigma, ", phi =", phi)) +
-    theme_minimal()
-}
-
-# Funktion zum Plotten der Kovarianzmatrix
-plot_matrix_modi <- function(grid, sigma = 1, alpha1 = 1, alpha2 = 1,lambda1 =1, 
-                        lambda2 = 1, beta = 0, test_sep = FALSE) {
-  # Compute covariance matrix using ModifiedExponentialCovariance function
-  cov_matrix <- ModifiedExponentialCovariance(grid, sigma, alpha1,
-                                              alpha2, lambda1, lambda2, beta,
-                                              test_sep)
-  
-  # Check if the result is a list (i.e., when test_sep = TRUE)
-  if (is.list(cov_matrix)) {
-    cov_matrix <- cov_matrix$covariance
+  # Validate input - MAKE SURE YOU HAVE x and y IN THE COLUMNS OF THE GRID
+  if (!all(c("x", "y") %in% names(grid))) {
+    stop("Grid must have 'x' and 'y' columns.")
   }
   
-  # Melt the covariance matrix for ggplot2
-  cov_melt <- melt(cov_matrix)
+  choice = match.arg(choice)
   
-  # Create the plot
-  ggplot(data = cov_melt, aes(x = Var1, y = Var2, fill = value)) +
-    geom_tile() +
-    scale_fill_gradient2(midpoint = median(cov_melt$value),
-                         low = "blue", mid = "white", high = "red",
-                         space = "Lab", name="Covariance") +
-    theme_minimal() +
-    labs(x = "X", y = "Y", title = "Covariance Matrix") +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  # Pairwise distances - euclidean distance is fine here
+  distance_matrix = as.matrix(dist(grid[, c("x", "y")]))
+  
+  # Threshold distance
+  threshold = perc * max(distance_matrix)
+  
+  if (choice == "border") {
+    # Identify border points based on margin - we allow for a margin of 0.05 
+    is_border = with(grid, x <= margin | x >= (1 - margin) | 
+                       y <= margin | y >= (1 - margin))
+    border_points = grid[is_border, ]
+    
+    if (nrow(border_points) == 0) {
+      stop("No points found near the border with the specified margin.")
+    }
+    
+    # Pairwise distances among border points
+    distance_matrix_border = as.matrix(dist(border_points[, c("x", "y")]))
+    
+    # Threshold distance for border points
+    threshold_border = perc * max(distance_matrix_border)
+    
+    # Count neighbors within threshold for each border point (excluding itself)
+    neighbor_counts_border = apply(distance_matrix_border, 1, 
+                                  function(row) sum(row < threshold_border) - 1)
+    
+    # Counting border_points
+    border_points$neighbor_count = neighbor_counts_border
+    
+    # Find minimum neighbor count among border points
+    min_neighbors = min(border_points$neighbor_count)
+    
+    # Identify border points with minimum neighbor count
+    isolated_border_points = border_points[border_points$neighbor_count == min_neighbors, ]
+    
+    if (nrow(isolated_border_points) == 0) {
+      stop("No isolated border points found with the specified threshold.")
+    }
+    
+    # Select one point: 
+    if (nrow(isolated_border_points) > 1 && randomize) {
+      # randomly
+      selected_row = isolated_border_points[sample(nrow(isolated_border_points), 1), ]
+    } else {
+      # first point in the list
+      selected_row = isolated_border_points[1, ]
+    }
+    
+    # Find the index of the selected point in the original grid
+    selected_index = which(grid$x == selected_row$x & grid$y == selected_row$y)
+    
+    # Return the selected point and its index
+    return(list(point = selected_row, index = selected_index))
+    
+  } else {
+    # For "many" and "few" choices
+    
+    # Count neighbors within threshold for each point (excluding itself)
+    neighbor_counts = apply(distance_matrix, 1, 
+                            function(row) sum(row < threshold) - 1)
+    
+    if (choice == "many") {
+      selected_index = which.max(neighbor_counts)
+    } else { # choice == "few"
+      selected_index = which.min(neighbor_counts)
+    }
+    
+    # Return the selected point and its index
+    return(list(point = grid[selected_index, ], index = selected_index))
+  }
 }
-
-#-------------------------------------------------------------------------------
 
 
 #-------------------------------------------------------------------------------
