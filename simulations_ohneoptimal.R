@@ -14,57 +14,57 @@ source("plotting.R") # Upload functions in separate script
 set.seed(1234)# set seed for replication
 #-------------------------------------------------------------------------------
 # SIMULATION OF GRID
-# grid_size = 50
-# xdim = grid_size # horizontal size
-# ydim = grid_size #vertical size
-# 
-# # Erzeugt zufällige Koordinaten im Bereich [0, 1] für das Raster
-# grid = data.frame(x = runif(xdim, 0, 1), y = runif(ydim, 0, 1))
-# grid = grid %>% arrange(x, y)
-# # Selecting Points with many neighbours and few neighbours
-# point_many = select_point_by_neighbour(grid, choice = "many", perc = 0.1)
-# point_few = select_point_by_neighbour(grid, choice = "few", perc = 0.1)
-# point_border = select_point_by_neighbour(grid, choice = "border",
-#                                             perc = 0.2, margin = 0.05)
-# index_many = point_many$index
-# index_few = point_few$index
-# index_border = point_border$index
-# #-------------------------------------------------------------------------------
+grid_size = 50
+xdim = grid_size # horizontal size
+ydim = grid_size #vertical size
+
+# Erzeugt zufällige Koordinaten im Bereich [0, 1] für das Raster
+grid = data.frame(x = runif(xdim, 0, 1), y = runif(ydim, 0, 1))
+grid = grid %>% arrange(x, y)
+# Selecting Points with many neighbours and few neighbours
+point_many = select_point_by_neighbour(grid, choice = "many", perc = 0.1)
+point_few = select_point_by_neighbour(grid, choice = "few", perc = 0.1)
+point_border = select_point_by_neighbour(grid, choice = "border",
+                                            perc = 0.2, margin = 0.05)
+index_many = point_many$index
+index_few = point_few$index
+index_border = point_border$index
+# #-----------------------------------------------------------------------------
 # # GENERATE TRUE ANALYTICAL COVARIANCE
-# #-------------------------------------------------------------------------------
+# #-----------------------------------------------------------------------------
 # 
-# sigma = 1
-# phi = 3
-# true_covariance = cov_exponential(grid, sigma, phi, method = "difference")
-# plot_matrix_image(true_covariance, main = paste0("True Covariance Matrix\n",
-#                                               "phi=", phi,", ",
-#                                               "sigma=", sigma))
+sigma = 1
+phi = 3
+true_covariance = cov_exponential(grid, sigma, phi, method = "difference")
+plot_matrix_image(true_covariance, main = paste0("True Covariance Matrix\n",
+                                              "phi=", phi,", ",
+                                              "sigma=", sigma))
 #-------------------------------------------------------------------------------
 # # SIMULATE SPATIAL GAUSSIAN RANDOM FIELD
-# X = mvrnorm(n = 1, mu = rep(0, nrow(grid)), Sigma = true_covariance)
-# grid$sim = X
-# 
-# 
-# # Add a 'type' variable to indicate point categories
-# grid$type = "Normal"
-# grid$type[index_many] = "Many"
-# grid$type[index_few] = "Few"
-# grid$type[index_border] = "Border"
-# 
-# # Define custom shapes for each type
-# shape_values = c("Normal" = 16, "Many" = 2, "Few" = 3, "Border" = 4)
-# 
-# # Create the plot
-# ggplot(grid, aes(x = x, y = y, color = sim, shape = type)) +
-#   geom_point(size = 5) +
-#   scale_color_gradient(low = "blue", high = "red") +
-#   scale_shape_manual(values = shape_values) +
-#   labs(title = "Simulated Spatial Data",
-#        x = "X Coordinate",
-#        y = "Y Coordinate",
-#        color = "Value",
-#        shape = "Point Type") +
-#   theme_minimal()
+X = mvrnorm(n = 1, mu = rep(0, nrow(grid)), Sigma = true_covariance)
+grid$sim = X
+
+
+# Add a 'type' variable to indicate point categories
+grid$type = "Normal"
+grid$type[index_many] = "Many"
+grid$type[index_few] = "Few"
+grid$type[index_border] = "Border"
+
+# Define custom shapes for each type
+shape_values = c("Normal" = 16, "Many" = 2, "Few" = 3, "Border" = 4)
+
+# Create the plot
+ggplot(grid, aes(x = x, y = y, color = sim, shape = type)) +
+  geom_point(size = 5) +
+  scale_color_gradient(low = "blue", high = "red") +
+  scale_shape_manual(values = shape_values) +
+  labs(title = "Simulated Spatial Data",
+       x = "X Coordinate",
+       y = "Y Coordinate",
+       color = "Value",
+       shape = "Point Type") +
+  theme_minimal()
 
 #-------------------------------------------------------------------------------
 # SIMULATION
@@ -83,7 +83,8 @@ covariances_df = data.frame(
   grid_size = integer(),
   phi = numeric(),
   bandwidth = numeric(),
-  spectral_norm = numeric()
+  spectral_norm = numeric(),
+  frob_norm = numeric()
 )
 
 point_diff_df = data.frame(
@@ -152,12 +153,16 @@ for(N in Ns){
   spectral_norm = norm(truecov_matrices[[as.character(N)]] - 
                          estcov_matrices[[as.character(N)]][[as.character(bw)]],
                        type = "2")
+  frob_norm = norm(truecov_matrices[[as.character(N)]] - 
+                         estcov_matrices[[as.character(N)]][[as.character(bw)]],
+                       type = "F")
   
   covariances_df = rbind(covariances_df, data.frame(
     grid_size = N,
     phi = phi,
     bandwidth = bw,
-    spectral_norm = spectral_norm
+    spectral_norm = spectral_norm,
+    frob_norm = frob_norm
   ))
   
   
