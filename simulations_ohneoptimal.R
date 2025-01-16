@@ -208,3 +208,4 @@ for(N in Ns){
 toc()
 print(covariances_df)
 print(point_diff_df)
+write.csv(covariances_df, file = "results.csv")
