@@ -2,7 +2,11 @@
 # PLOTTING
 #-------------------------------------------------------------------------------
 
+
 plot_matrix_image = function(X, main = "Matrix", labels = F){
+
+plot_matrix = function(X, main = "Matrix", labels = F){
+
   # Plot Matrix by keeping fixed the cell positions
   
   image(t(X)[, nrow(X):1], xaxt = "n", yaxt = "n", main = main)
@@ -15,6 +19,8 @@ plot_matrix_image = function(X, main = "Matrix", labels = F){
     axis(2, at = seq(0, 1, length.out = nrow(X)), labels = nrow(X):1)
   }
 }
+}
+
 
 # Funktion zum Plotten der Kovarianzmatrix
 plot_matrix <- function(grid, sigma, phi) {
@@ -59,3 +65,4 @@ plot_matrix_modi <- function(grid, sigma = 1, alpha1 = 1, alpha2 = 1,lambda1 =1,
     labs(x = "X", y = "Y", title = "Covariance Matrix") +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
 }
+
