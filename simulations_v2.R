@@ -219,12 +219,13 @@ print(point_diff_df)
 #-------------------------------------------------------------------------------
 # Save the results
 wd = file.path(dirname(rstudioapi::getActiveDocumentContext()$path))
-
+# Pointing to results directory
+resdir = file.path(wd, "results")
 timestamp = format(Sys.time(), "%Y-%m-%d_%H%M")
 file_name_cov = paste0("results_cov_", timestamp, ".csv")
 file_name_points = paste0("results_poi_", timestamp, ".csv")
 
-write.csv(covariances_df, file = file.path(wd, file_name_cov),
+write.csv(covariances_df, file = file.path(resdir, file_name_cov),
           row.names = F)
-write.csv(covariances_df, file = file.path(wd, file_name_points),
+write.csv(covariances_df, file = file.path(resdir, file_name_points),
           row.names = F)
