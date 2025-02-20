@@ -14,13 +14,22 @@ source("plotting.R") # Upload functions in separate script
 set.seed(1234)# set seed for replication
 #-------------------------------------------------------------------------------
 # SIMULATION OF GRID
-grid_size = 50
+grid_size = 20
 xdim = grid_size # horizontal size
 ydim = grid_size #vertical size
 
 # Erzeugt zufällige Koordinaten im Bereich [0, 1] für das Raster
 grid = data.frame(x = runif(xdim, 0, 1), y = runif(ydim, 0, 1))
-grid = grid %>% arrange(x, y)
+
+# ORDERED GRID
+#grid = grid %>% arrange(x, y)
+
+# NORM ORDERED GRID
+# grid$norm = sqrt(grid$x^2 + grid$y^2)
+# grid = grid %>% arrange(norm)
+# grid = grid[, 1:2]
+
+
 # Selecting Points with many neighbours and few neighbours
 point_many = select_point_by_neighbour(grid, choice = "many", perc = 0.1)
 point_few = select_point_by_neighbour(grid, choice = "few", perc = 0.1)
@@ -74,7 +83,7 @@ sigma = 1
 phi = 2
 perc = 0.1
 Ns = c(30, 50, 70) # grid sizes
-bandwidths = c(0.1, 0.2, 0.3) # bandwidths
+bandwidths = c(0.01, 0.02, 0.03) # bandwidths
 kernel = "rechteck_kernel"
 truecov_matrices = list()
 estcov_matrices = list()
@@ -176,7 +185,7 @@ for(N in Ns){
     type = points[i, c("type")]
     
     for(j in 1:nrow(distance_points)){
-      distance_type = distance_points$type
+      distance_type = distance_points[j, "type"]
       true_point_cov = sigma^2*exp(-(x_point - distance_points[j, "x"] / phi)*
                           exp(-(y_point - distance_points[j, "y"]) / phi))
                   
@@ -200,7 +209,6 @@ for(N in Ns){
         )
       )
     }
-
     }
   }
   toc()
@@ -208,4 +216,15 @@ for(N in Ns){
 toc()
 print(covariances_df)
 print(point_diff_df)
-write.csv(covariances_df, file = "results.csv")
+#-------------------------------------------------------------------------------
+# Save the results
+wd = file.path(dirname(rstudioapi::getActiveDocumentContext()$path))
+
+timestamp = format(Sys.time(), "%Y-%m-%d_%H%M")
+file_name_cov = paste0("results_cov_", timestamp, ".csv")
+file_name_points = paste0("results_poi_", timestamp, ".csv")
+
+write.csv(covariances_df, file = file.path(wd, file_name_cov),
+          row.names = F)
+write.csv(covariances_df, file = file.path(wd, file_name_points),
+          row.names = F)
