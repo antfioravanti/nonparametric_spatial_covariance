@@ -21,7 +21,7 @@ cov_exponential = function(grid, sigma, phi, method = "euclidean") {
   if(!sum(method == c("difference", "euclidean"))){
     print("Specify either euclidean or difference method")
   }
-
+  
   if(method == "euclidean"){
     # Euclidean distance
     dist_matrix = as.matrix(dist(grid, method = method))
@@ -133,7 +133,9 @@ select_point_by_neighbour = function(grid,
     
     # Count neighbors within threshold for each border point (excluding itself)
     neighbor_counts_border = apply(distance_matrix_border, 1, 
-                                  function(row) sum(row < threshold_border) - 1)
+
+    function(row) sum(row < threshold_border) - 1)
+
     
     # Counting border_points
     border_points$neighbor_count = neighbor_counts_border
@@ -266,7 +268,7 @@ kernel_cov = function(t1, t2, X, grid, bandwidth,
   k_x = kernel_fun(lag_x - diff_x, bandwidth)
   k_y = kernel_fun(lag_y - diff_y, bandwidth)
   K_vals = k_x * k_y
-
+  
   X_ij = outer(demeaned_X, demeaned_X, "*") 
   
   #cov_vals = X_ij / sample_var
@@ -433,7 +435,7 @@ kernel_cov_flo <- function(t1, t2, X, grid, bandwidth,
   for (i in 1:n) {
     for (j in 1:n) {
       # Difference in coordinates for the grid points
-    
+      
       diff_x <- grid$x[i] - grid$x[j]
       diff_y <- grid$y[i] - grid$y[j]
       
@@ -471,7 +473,7 @@ kernel_cov_flo <- function(t1, t2, X, grid, bandwidth,
 # Nicht Vektorisierte Kernel-Kovarianzfunktion mit euklidischen Distanz
 
 kernel_cov_flo_eucli <- function(t1, t2, X, grid, bandwidth,
-                           kernel_function="gaussian_kernel") {
+                                 kernel_function="gaussian_kernel") {
   # Ensure the kernel_function is correctly specified
   kernel_fun = switch(
     kernel_function,
@@ -636,4 +638,3 @@ visualize_covariance = function(grid, sigma, phi_values, method = "euclidean") {
           col = heat.colors(100))
   }
 }
-

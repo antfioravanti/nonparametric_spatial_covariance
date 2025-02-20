@@ -1,9 +1,9 @@
-
 #-------------------------------------------------------------------------------
 # PLOTTING
 #-------------------------------------------------------------------------------
 
 plot_matrix_image = function(X, main = "Matrix", labels = F){
+
   # Plot Matrix by keeping fixed the cell positions
   
   image(t(X)[, nrow(X):1], xaxt = "n", yaxt = "n", main = main)
@@ -20,7 +20,8 @@ plot_matrix_image = function(X, main = "Matrix", labels = F){
 # Funktion zum Plotten der Kovarianzmatrix
 plot_matrix <- function(grid, sigma, phi) {
   # Erstellen der Kovarianzmatrix
-  true_covariance <- cov_exponential(grid, sigma, phi, method = "euclidean")
+
+  true_covariance <- cov_exponential(grid, sigma, phi, method = "difference")
   
   # Umwandeln der Matrix in ein langes Format für ggplot2
   cov_matrix_melted <- melt(true_covariance)
@@ -29,8 +30,8 @@ plot_matrix <- function(grid, sigma, phi) {
   ggplot(cov_matrix_melted, aes(x = Var1, y = Var2, fill = value)) +
     geom_tile() +
     scale_fill_gradient(low = "white", high = "blue") +
-    labs(x = "Index 1", y = "Index 2", fill = "Covariance", 
-         title = paste("Covariance Matrix\nsigma =", sigma, ", phi =", phi)) +
+    labs(x = "x-Koordinate", y = "y-Koordinate", fill = "Wert", 
+         title = paste("Wahre Kovarianzmatrix\nsigma =", sigma, ", phi1=phi2 =", phi)) +
     theme_minimal()
 }
 
