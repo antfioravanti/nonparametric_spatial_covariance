@@ -133,7 +133,9 @@ select_point_by_neighbour = function(grid,
     
     # Count neighbors within threshold for each border point (excluding itself)
     neighbor_counts_border = apply(distance_matrix_border, 1, 
-                                   function(row) sum(row < threshold_border) - 1)
+
+    function(row) sum(row < threshold_border) - 1)
+
     
     # Counting border_points
     border_points$neighbor_count = neighbor_counts_border

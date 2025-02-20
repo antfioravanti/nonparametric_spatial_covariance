@@ -13,12 +13,18 @@ source("utils_functions.R") # Upload functions in separate script
 set.seed(1234)# set seed for replication
 #-------------------------------------------------------------------------------
 # SIMULATION OF GRID
-
 xdim = 100 # horizontal size
 ydim = 100 #vertical size
 
+
 # Erzeugt zufällige Koordinaten im Bereich [0, 1] für das Raster
 grid = data.frame(x = runif(xdim, 0, 1), y = runif(ydim, 0, 1))
+
+# Selecting Points with many neighbours and few neighbours
+point_many = select_point_by_neighbour(grid, choice = "many", perc = 0.1)
+point_few = select_point_by_neighbour(grid, choice = "few", perc = 0.1)
+index_many = point_many$index
+index_few = point_few$index
 #-------------------------------------------------------------------------------
 plot1 <- plot(grid$x, grid$y,
      main = "Räumliche Positionen aus einer gleichmäßigen Zufallsverteilung",
@@ -28,16 +34,12 @@ text(grid$x, grid$y, labels = 1:nrow(grid), pos = 3, cex = 0.7, col = "red")
 #-------------------------------------------------------------------------------
 # GENERATE TRUE ANALYTICAL COVARIANCE
 #-------------------------------------------------------------------------------
-
-
-
 sigma = 1
-phi = 1/3
+phi = 3
 #phi_x = 0.5
 #phi_y = 1
 
 #true_covariance = cov_exponential(grid, sigma, phi = NULL, phi_x, phi_y, method = "difference")
-
 true_covariance = cov_exponential(grid, sigma, phi, method = "difference")
 
 titel_cov = paste("True Exponential Covariance;", "sigma =", sigma, "phi =", phi)
@@ -85,13 +87,29 @@ grid$sim = X
 ggplot(grid, aes(x = x, y = y, color = sim)) +
   geom_point(size = 5) +
   scale_color_gradient(low = "blue", high = "red") +
-  labs(title = "Simuliertes räumliches gaußsches Zufallsfeld", x = "x-Koordinate", y = "y-Koordinate",
-       color = "Wert") +
+  labs(title = "Simulated Spatial Data", x = "X Coordinate", y = "Y Coordinate",
+       color = "Value") +
   theme_minimal()
 
+# Add a 'type' variable to indicate point categories
+grid$type <- "Normal"
+grid$type[index_many] <- "Many"
+grid$type[index_few] <- "Few"
 
+# Define custom shapes for each type
+shape_values <- c("Normal" = 16, "Many" = 17, "Few" = 15)
 
-#X = mvrnorm(n = 1, mu = rep(0, nrow(grid)), Sigma = true_covariance)
+# Create the plot
+ggplot(grid, aes(x = x, y = y, color = sim, shape = type)) +
+  geom_point(size = 5) +
+  scale_color_gradient(low = "blue", high = "red") +
+  scale_shape_manual(values = shape_values) +
+  labs(title = "Simulated Spatial Data",
+       x = "X Coordinate",
+       y = "Y Coordinate",
+       color = "Value",
+       shape = "Point Type") +
+  theme_minimal()
 
 #-------------------------------------------------------------------------------
 # ESTIMATE SPATIAL COVARIANCE

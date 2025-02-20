@@ -2,10 +2,7 @@
 # PLOTTING
 #-------------------------------------------------------------------------------
 
-
 plot_matrix_image = function(X, main = "Matrix", labels = F){
-
-plot_matrix = function(X, main = "Matrix", labels = F){
 
   # Plot Matrix by keeping fixed the cell positions
   
@@ -19,12 +16,11 @@ plot_matrix = function(X, main = "Matrix", labels = F){
     axis(2, at = seq(0, 1, length.out = nrow(X)), labels = nrow(X):1)
   }
 }
-}
-
 
 # Funktion zum Plotten der Kovarianzmatrix
 plot_matrix <- function(grid, sigma, phi) {
   # Erstellen der Kovarianzmatrix
+
   true_covariance <- cov_exponential(grid, sigma, phi, method = "difference")
   
   # Umwandeln der Matrix in ein langes Format für ggplot2
@@ -65,4 +61,3 @@ plot_matrix_modi <- function(grid, sigma = 1, alpha1 = 1, alpha2 = 1,lambda1 =1,
     labs(x = "X", y = "Y", title = "Covariance Matrix") +
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
 }
-
