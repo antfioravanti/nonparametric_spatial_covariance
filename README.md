@@ -1,20 +1,20 @@
-# Nonparametric Spatial Covariance estimator
-Simulations on the Nonparametric Spatial Covariance estimator as presented in Properties of nonparametric estimators of autocovariance for stationary random fields by Peter Hall and Prakash Patil.
-
-### Version 1
-Original Simulations
-### Version 2 
-Simulations with consideration for specific points.
-Namely, we select 3 points:
-	- "Many": a point with many neighbouring points
-	- "Few": a point with few neighbouring points
-	- "Border": a point at the border of the grid
-	
-For each of the above point, we select:
-	- "Closest": the closest point in Eucleadean distance
-	- "Furthest": the furthest point in Eucleadean distance
-	- "Medium": a point in the middle of the Eucleadean distance
-	
-### Version 3
-_IN PROGRESS_
-Refactor of the simulation for parallel computing.
+# Extract reference coordinates
+  ref_x = point_df$x[1]
+  ref_y = point_df$y[1]
+  distances = sqrt((grid$x - ref_x)^2 + (grid$y - ref_y)^2)
+  same_point_indices = which(grid$x == ref_x & grid$y == ref_y)
+  grid$dist = distances
+  # Identify the Closest Point
+  closest_index = order(distances)[2]
+  closest_point = grid[closest_index, ]
+  
+  # Identify the Medium-Distance Point
+  median_distance = median(distances)
+  median_diff = abs(distances - median_distance)
+  medium_index = which.min(median_diff)
+  medium_point = grid[medium_index, ]
+  
+  # Identify the Farthest Point
+  farthest_index = which.max(distances)
+  farthest_point = grid[farthest_index, ]
+  
