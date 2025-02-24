@@ -86,13 +86,23 @@ ggplot(grid, aes(x = x, y = y, color = sim, shape = type)) +
 #-------------------------------------------------------------------------------
 
 sigma = 1
-phi = 2
+phi = 1
 perc = 0.1
-Ns = c(50, 70) # grid sizes
-bandwidths = c(0.1, 0.2) # bandwidths
+Ns = c(50, 100, 150) # grid sizes
+bandwidths = c(0.1, 0.2, 0.3) # bandwidths
 kernel = "rechteck_kernel"
 truecov_matrices = list()
 estcov_matrices = list()
+
+# Booleans for plots and norm rearrangement of the grid
+plot = T
+norm_arrange = T
+
+
+wd = file.path(dirname(rstudioapi::getActiveDocumentContext()$path))
+# Pointing to results directory
+resdir = file.path(wd, "results")
+plotdir = file.path(wd, "plots")
 
 covariances_df = data.frame(
   grid_size = integer(),
@@ -125,8 +135,12 @@ for(N in Ns){
   ydim = N #vertical size
   # Erzeugt zufällige Koordinaten im Bereich [0, 1] für das Raster
   grid = data.frame(x = runif(xdim, 0, 1), y = runif(ydim, 0, 1))
-  # ORDERING OF THE GRID (ASCENDING) 
-  #grid = grid %>% arrange(x, y)
+  if(norm_arrange == T){
+    # NORM ORDERED GRID
+    grid$norm = sqrt(grid$x^2 + grid$y^2)
+    grid = grid %>% arrange(norm)
+    grid = grid[, 1:2]
+  }
   # Selecting Points with many neighbours and few neighbours
   point_many = select_point_by_neighbour(grid, choice = "many", perc = perc)
   point_few = select_point_by_neighbour(grid, choice = "few", perc = perc)
@@ -152,6 +166,19 @@ for(N in Ns){
               Sigma = truecov_matrices[[as.character(N)]])
   grid$sim = X
   
+  if(plot == T){
+    plot_matrix_image(truecov_matrices[[as.character(N)]],
+                      main = paste0("TrueCov\n",
+                                    "size=", N,", ",
+                                    "phi=", phi,", ",
+                                    "sigma=", sigma),
+                      save_plot = T,
+                      save_dir = plotdir,
+                      file_name = paste0("TrueCov_size", N, "_",
+                                         "phi_", phi, "_",
+                                         "sigma_", sigma, ".png"))
+  }
+  
   tic("Loop for different Bandwidths")
   for(bw in bandwidths){
     cat("Grid Size:", N, "Bandwidths: ", bw, "\n")
@@ -167,6 +194,34 @@ for(N in Ns){
       }
     }
     estcov_matrices[[as.character(N)]][[as.character(bw)]] = est_cov_matrix
+    
+    if(plot == T){
+      diff_cov_mat = abs(truecov_matrices[[as.character(N)]] - 
+            estcov_matrices[[as.character(N)]][[as.character(bw)]])
+      
+      plot_matrix_image(est_cov_matrix,
+                        main = paste0("EstCov\n",
+                                      "size=", N,", ",
+                                      "phi=", phi,", ",
+                                      "bw=", bw),
+                        save_plot = T,
+                        save_dir = plotdir,
+                        file_name = paste0("EstCov_size", N, "_",
+                                           "phi_", phi, "_",
+                                           "bw_", bw, ".png"))
+      
+      plot_matrix_image(diff_cov_mat,
+                        main = paste0("DiffMat\n",
+                                      "size=", N,", ",
+                                       "phi=", phi,", ",
+                                       "bw=", bw),
+                        save_plot = T,
+                        save_dir = plotdir,
+                        file_name = paste0("DiffMat_size", N, "_",
+                                      "phi_", phi, "_",
+                                      "bw_", bw, ".png"))
+      
+    }
 
   # COVARIANCE
   spectral_norm = norm(truecov_matrices[[as.character(N)]] - 

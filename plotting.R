@@ -1,21 +1,32 @@
 #-------------------------------------------------------------------------------
 # PLOTTING
 #-------------------------------------------------------------------------------
-
-plot_matrix_image = function(X, main = "Matrix", labels = F){
-
-  # Plot Matrix by keeping fixed the cell positions
+plot_matrix_image = function(X, main = "Matrix",
+                             labels = FALSE, 
+                             save_plot = FALSE,
+                             save_dir = ".",
+                             file_name = "matrix_plot.png") {
+  # If saving is requested, construct the full file path and open the device.
+  if (save_plot) {
+    file_path <- file.path(save_dir, file_name)
+    png(filename = file_path, width = 800, height = 600)  # Adjust dimensions if needed.
+  }
   
+  # Plot the matrix.
   image(t(X)[, nrow(X):1], xaxt = "n", yaxt = "n", main = main)
   
-  if(labels == T){
-    # Add x-axis labels
+  # Optionally add labels.
+  if (labels) {
     axis(1, at = seq(0, 1, length.out = ncol(X)), labels = 1:ncol(X))
-    
-    # Add y-axis labels
     axis(2, at = seq(0, 1, length.out = nrow(X)), labels = nrow(X):1)
   }
+  
+  # If a device was opened, close it to save the plot.
+  if (save_plot) {
+    dev.off()
+  }
 }
+
 
 # Funktion zum Plotten der Kovarianzmatrix
 plot_matrix <- function(grid, sigma, phi) {
