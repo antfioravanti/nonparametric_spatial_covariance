@@ -172,10 +172,10 @@ select_point_by_neighbour = function(grid,
                             function(row) sum(row < threshold) - 1)
     
     if (choice == "many") {
-      selected_index = which.max(neighbor_counts)
+      selected_index = as.vector(which.max(neighbor_counts))[1]
       grid$type = "Many"
     } else { # choice == "few"
-      selected_index = which.min(neighbor_counts)
+      selected_index = as.vector(which.min(neighbor_counts))[1]
       grid$type = "Few"
     }
     
@@ -290,7 +290,7 @@ kernel_cov = function(t1, t2, X, grid, bandwidth,
               count_ones = count_ones))
 }
 
-get_distance_points <- function(grid, point_df, exclude_self = TRUE) {
+get_distance_points <- function(grid, point_df) {
   # grid: A data.frame with 'x' and 'y' columns representing points
   # point_df: A data.frame with exactly one row containing 'x' and 'y' columns
   # exclude_self: If TRUE, excludes the reference point from the grid if present
@@ -306,40 +306,33 @@ get_distance_points <- function(grid, point_df, exclude_self = TRUE) {
   }
   
   # Extract reference coordinates
-  ref_x <- point_df$x[1]
-  ref_y <- point_df$y[1]
-  
-  # Calculate Euclidean distances from the reference point to all grid points
-  distances <- sqrt((grid$x - ref_x)^2 + (grid$y - ref_y)^2)
-  
-  # Optionally exclude the reference point itself from the grid
-  if (exclude_self) {
-    same_point_indices <- which(grid$x == ref_x & grid$y == ref_y)
-    if (length(same_point_indices) > 0) {
-      distances[same_point_indices] <- Inf  # Assign infinite distance to exclude
-    }
-  }
+  ref_x = point_df$x[1]
+  ref_y = point_df$y[1]
+  distances = sqrt((grid$x - ref_x)^2 + (grid$y - ref_y)^2)
+  grid$dist = distances
+  same_point_indices = which(grid$x == ref_x & grid$y == ref_y)
   
   # Identify the Closest Point
-  closest_index <- which.min(distances)
-  closest_point <- grid[closest_index, ]
+  closest_index = order(distances)[2]
+  closest_point = grid[closest_index, ]
   
   # Identify the Medium-Distance Point
-  median_distance <- median(distances)
-  median_diff <- abs(distances - median_distance)
-  medium_index <- which.min(median_diff)
-  medium_point <- grid[medium_index, ]
+  median_distance = median(distances)
+  median_diff = abs(distances - median_distance)
+  medium_index = which.min(median_diff)
+  medium_point = grid[medium_index, ]
   
   # Identify the Farthest Point
-  farthest_index <- which.max(distances)
-  farthest_point <- grid[farthest_index, ]
+  farthest_index = which.max(distances)
+  farthest_point = grid[farthest_index, ]
   
   # Compile the results into a single data frame
   result <- data.frame(
     type = c("Closest", "Medium", "Farthest"),
     x = c(closest_point$x, medium_point$x, farthest_point$x),
     y = c(closest_point$y, medium_point$y, farthest_point$y),
-    index = c(closest_index, medium_index, farthest_index)
+    index = c(closest_index, medium_index, farthest_index),
+    dist = c(closest_point$dist, medium_point$dist, farthest_point$dist)
   )
   
   return(result)

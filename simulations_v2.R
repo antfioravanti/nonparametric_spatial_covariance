@@ -14,7 +14,7 @@ source("plotting.R") # Upload functions in separate script
 set.seed(1234)# set seed for replication
 #-------------------------------------------------------------------------------
 # SIMULATION OF GRID
-grid_size = 20
+grid_size = 30
 xdim = grid_size # horizontal size
 ydim = grid_size #vertical size
 
@@ -25,9 +25,9 @@ grid = data.frame(x = runif(xdim, 0, 1), y = runif(ydim, 0, 1))
 #grid = grid %>% arrange(x, y)
 
 # NORM ORDERED GRID
-# grid$norm = sqrt(grid$x^2 + grid$y^2)
-# grid = grid %>% arrange(norm)
-# grid = grid[, 1:2]
+grid$norm = sqrt(grid$x^2 + grid$y^2)
+grid = grid %>% arrange(norm)
+grid = grid[, 1:2]
 
 
 # Selecting Points with many neighbours and few neighbours
@@ -38,6 +38,12 @@ point_border = select_point_by_neighbour(grid, choice = "border",
 index_many = point_many$index
 index_few = point_few$index
 index_border = point_border$index
+
+
+points = rbind(point_many$point,
+               point_few$point,
+               point_border$point,
+               make.row.names=FALSE)
 # #-----------------------------------------------------------------------------
 # # GENERATE TRUE ANALYTICAL COVARIANCE
 # #-----------------------------------------------------------------------------
@@ -82,8 +88,8 @@ ggplot(grid, aes(x = x, y = y, color = sim, shape = type)) +
 sigma = 1
 phi = 2
 perc = 0.1
-Ns = c(30, 50, 70) # grid sizes
-bandwidths = c(0.01, 0.02, 0.03) # bandwidths
+Ns = c(50, 70) # grid sizes
+bandwidths = c(0.1, 0.2) # bandwidths
 kernel = "rechteck_kernel"
 truecov_matrices = list()
 estcov_matrices = list()
@@ -120,12 +126,16 @@ for(N in Ns){
   # Erzeugt zufällige Koordinaten im Bereich [0, 1] für das Raster
   grid = data.frame(x = runif(xdim, 0, 1), y = runif(ydim, 0, 1))
   # ORDERING OF THE GRID (ASCENDING) 
-  grid = grid %>% arrange(x, y)
+  #grid = grid %>% arrange(x, y)
   # Selecting Points with many neighbours and few neighbours
   point_many = select_point_by_neighbour(grid, choice = "many", perc = perc)
   point_few = select_point_by_neighbour(grid, choice = "few", perc = perc)
   point_border = select_point_by_neighbour(grid, choice = "border", perc = 0.1,
                                            margin = 0.05)
+  indices = data.frame(idx_many  = point_many$index,
+                       idx_few   = point_few$index,
+                       idx_border = point_border$index,
+                       make.row.names=FALSE)
   
   points = rbind(point_many$point,
                   point_few$point,
@@ -162,24 +172,22 @@ for(N in Ns){
   spectral_norm = norm(truecov_matrices[[as.character(N)]] - 
                          estcov_matrices[[as.character(N)]][[as.character(bw)]],
                        type = "2")
-  frob_norm = norm(truecov_matrices[[as.character(N)]] - 
-                         estcov_matrices[[as.character(N)]][[as.character(bw)]],
-                       type = "F")
+  # frob_norm = norm(truecov_matrices[[as.character(N)]] - 
+  #                        estcov_matrices[[as.character(N)]][[as.character(bw)]],
+  #                      type = "F")
   
   covariances_df = rbind(covariances_df, data.frame(
     grid_size = N,
     phi = phi,
     bandwidth = bw,
-    spectral_norm = spectral_norm,
-    frob_norm = frob_norm
+    spectral_norm = spectral_norm
   ))
   
   
   # POINTS
   for(i in 1:nrow(points)){
     distance_points = get_distance_points(grid[, c("x", "y")],
-                                         points[i, c("x", "y")],
-                                         exclude_self = T)
+                                         points[i, c("x", "y")])
     x_point = points[i, c("x")]
     y_point = points[i, c("y")]
     type = points[i, c("type")]
@@ -205,7 +213,8 @@ for(N in Ns){
         distance_type = distance_type,
         true_cov = true_point_cov,
         est_cov = est_point_cov$covariance,
-        difference = abs(true_point_cov - est_point_cov$covariance)
+        difference = abs(true_point_cov - est_point_cov$covariance),
+        dist = distance_points[j, "dist"]
         )
       )
     }
