@@ -86,7 +86,7 @@ ggplot(grid, aes(x = x, y = y, color = sim, shape = type)) +
 #-------------------------------------------------------------------------------
 
 sigma = 1
-phi = 1
+phi = 2
 perc = 0.1
 Ns = c(50, 100, 150) # grid sizes
 bandwidths = c(0.1, 0.2, 0.3) # bandwidths
@@ -196,8 +196,8 @@ for(N in Ns){
     estcov_matrices[[as.character(N)]][[as.character(bw)]] = est_cov_matrix
     
     if(plot == T){
-      diff_cov_mat = abs(truecov_matrices[[as.character(N)]] - 
-            estcov_matrices[[as.character(N)]][[as.character(bw)]])
+      diff_cov_mat = (truecov_matrices[[as.character(N)]] - 
+            estcov_matrices[[as.character(N)]][[as.character(bw)]])^2
       
       plot_matrix_image(est_cov_matrix,
                         main = paste0("EstCov\n",
@@ -281,15 +281,12 @@ toc()
 print(covariances_df)
 print(point_diff_df)
 #-------------------------------------------------------------------------------
-# Save the results
-wd = file.path(dirname(rstudioapi::getActiveDocumentContext()$path))
-# Pointing to results directory
-resdir = file.path(wd, "results")
+
 timestamp = format(Sys.time(), "%Y-%m-%d_%H%M")
 file_name_cov = paste0("results_cov_", timestamp, ".csv")
-file_name_points = paste0("results_poi_", timestamp, ".csv")
+file_name_points = paste0("results_points_", timestamp, ".csv")
 
 write.csv(covariances_df, file = file.path(resdir, file_name_cov),
           row.names = F)
-write.csv(covariances_df, file = file.path(resdir, file_name_points),
+write.csv(point_diff_df, file = file.path(resdir, file_name_points),
           row.names = F)
