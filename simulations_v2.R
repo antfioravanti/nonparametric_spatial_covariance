@@ -96,7 +96,7 @@ estcov_matrices = list()
 
 # Booleans for plots and norm rearrangement of the grid
 plot = T
-norm_arrange = T
+norm_arrange = F
 
 
 wd = file.path(dirname(rstudioapi::getActiveDocumentContext()$path))
