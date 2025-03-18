@@ -293,43 +293,76 @@ ggplot(grid, aes(x = h1, y = h2, fill = E_Z)) +
 library(ggplot2)
 library(reshape2)
 
-# Funktion zur Berechnung der exponentiellen Kovarianzmatrix
-cov_exponential = function(grid, sigma, phi, method = "difference") {
-  if (!method %in% c("difference", "euclidean")) {
-    stop("Specify either 'euclidean' or 'difference' method")
-  }
-  
-  if (method == "difference") {
-    # Absolute Differenzen berechnen
-    dist_matrix_x = abs(outer(grid$x, grid$x, "-"))
-    dist_matrix_y = abs(outer(grid$y, grid$y, "-"))
-    
-    # Kovarianzmatrix berechnen
-    covariance = sigma^2 * exp(-dist_matrix_x / phi) * exp(-dist_matrix_y / phi)
-  }
-  
+# Erstelle das Gitter für h1 und h2 in [-1,1] x [-1,1]
+grid_size <- 100
+h1_seq <- seq(-1, 1, length.out = grid_size)
+h2_seq <- seq(-1, 1, length.out = grid_size)
+grid <- expand.grid(h1 = h1_seq, h2 = h2_seq)
+
+# Parameter für die exponentielle Kovarianzfunktion
+sigma2 <- 1  # Varianzparameter
+phi_values <- c(1, 2)  # Zwei verschiedene phi-Werte
+
+# Funktion zur Berechnung der Kovarianzmatrix mit absoluter Differenz
+true_covariance_absdiff <- function(h1, h2, sigma2, phi) {
+  dist_matrix_h1 <- abs(outer(h1, h1, "-"))
+  dist_matrix_h2 <- abs(outer(h2, h2, "-"))
+  covariance <- sigma2 * exp(-dist_matrix_h1 / phi) * exp(-dist_matrix_h2 / phi)
   return(covariance)
 }
 
-# Beispielgitter erzeugen
-set.seed(123)
-grid = data.frame(x = runif(xdim, 0, 1), y = runif(ydim, 0, 1))
+# Berechne die Kovarianz für verschiedene phi-Werte
+cov_data <- do.call(rbind, lapply(phi_values, function(phi) {
+  cov_matrix <- true_covariance_absdiff(grid$h1, grid$h2, sigma2, phi)
+  data.frame(grid, phi = phi, cov_value = diag(cov_matrix))  # Nur Hauptdiagonale für Visualisierung
+}))
 
-# Parameter für die Kovarianzfunktion
-sigma = 1
-phi = 3
-
-# Kovarianzmatrix berechnen
-cov_matrix = cov_exponential(grid, sigma, phi, method = "difference")
-
-# Matrix in langes Format umwandeln für ggplot
-cov_df = melt(cov_matrix)
-
-# Heatmap plotten
-ggplot(cov_df, aes(Var1, Var2, fill = value)) +
+# Visualisierung mit ggplot2
+ggplot(cov_data, aes(x = h1, y = h2, fill = cov_value)) +
   geom_tile() +
-  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = sigma^2 / 2) +
-  labs(title = "Exponentielle Kovarianzmatrix (Differenz-Methode)", x = "Index", y = "Index", fill = "Kovarianz") +
-  theme_minimal()
+  scale_fill_viridis_c() +
+  facet_wrap(~phi, labeller = label_bquote(phi == .(phi))) +
+  theme_minimal() +
+  labs(title = "Exponentielle Kovarianzfunktion (Absolute Differenz)",
+       x = expression(h[1]), y = expression(h[2]), fill = "Kovarianz") +
+  coord_fixed()
+
+
+###### andere version
+
+library(ggplot2)
+library(reshape2)
+
+# Erstelle das Gitter [-1,1] x [-1,1]
+grid_size <- 100
+h_seq <- seq(-1, 1, length.out = grid_size)
+grid <- expand.grid(h1 = h_seq, h2 = h_seq)
+
+# Parameter
+sigma2 <- 1
+phi_values <- c(1, 2)  # Zwei verschiedene phi-Werte für den Vergleich
+
+# Funktion zur Berechnung der wahren Kovarianz
+true_covariance <- function(h1, h2, sigma2, phi) {
+  sigma2 * exp(-abs(h1 - h2) / phi)
+}
+
+# Berechne die Kovarianzmatrix für verschiedene phi-Werte
+cov_data <- do.call(rbind, lapply(phi_values, function(phi) {
+  data.frame(grid, phi = phi,
+             cov_value = mapply(true_covariance, grid$h1, grid$h2,
+                                MoreArgs = list(sigma2 = sigma2, phi = phi)))
+}))
+
+# Visualisierung mit ggplot2
+ggplot(cov_data, aes(x = h1, y = h2, fill = cov_value)) +
+  geom_tile() +
+  scale_fill_viridis_c() +
+  facet_wrap(~phi, labeller = label_bquote(phi == .(phi))) +
+  theme_minimal() +
+  labs(title = "Wahre exponentielle Kovarianzfunktion",
+       x = expression(h[1]), y = expression(h[2]), fill = "Kovarianz") +
+  coord_fixed()
+
 
 
